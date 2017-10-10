@@ -2,10 +2,11 @@ import Control.Applicative
 import Control.Monad
 import System.IO
 import Data.List
+import Data.Char
 
-data GameBoard = GameBoard { targetWord :: [Char], lettersGuessed :: [Char] }
+data GameBoard = GameBoard { targetWord :: [Char], lettersGuessed :: [Char], lettersLeft :: [Char] }
   deriving (Show)
-data UserInputError = CharacterAlreadyPlayed [Char] | CharacterNotInAlphabet [Char]
+data UserAttemptOutcome = UserWon [Char] | CharacterAlreadyPlayed [Char] | CharacterNotInAlphabet [Char]
   deriving (Show)
 
 alphabet = "abcdefghjijklmnopqrstuvwxyz"
@@ -14,19 +15,31 @@ sortUniq :: Ord a => [a] -> [a]
 sortUniq = nub . sort
 
 takeGuess :: Char -> GameBoard -> GameBoard
-takeGuess c gb = (GameBoard (targetWord gb) $ c : (lettersGuessed gb))
+takeGuess c gb = (GameBoard
+                  (targetWord gb)
+                  (c : (lettersGuessed gb))
+                  $ filter (`notElem` [c]) (lettersLeft gb))
 
 passthrough :: GameBoard -> GameBoard
 passthrough gb = gb
 
-processUserAttempt :: Char -> GameBoard -> Either UserInputError GameBoard
-processUserAttempt c gb = if characterAllowed c gb
-                          then Right (takeGuess c gb)
+processUserAttempt :: Char -> GameBoard -> Either UserAttemptOutcome GameBoard
+processUserAttempt c gb = do
+                          let characterAllowed = isCharacterAllowed c gb
+                          if  characterAllowed
+                          then do
+                            let newGameBoard = (takeGuess c gb)
+                            if hasUserWon newGameBoard
+                            then Left (UserWon "Congrats!")
+                            else Right newGameBoard
                           else Left (CharacterAlreadyPlayed "This character's already been played")
 
-characterAllowed :: Char -> GameBoard -> Bool
-characterAllowed c gb = characterNotPlayedBefore c gb
-                        && characterIsInAlphabet c
+isCharacterAllowed :: Char -> GameBoard -> Maybe UserAttemptOutcome
+isCharacterAllowed c gb = if not characterNotPlayedBefore c gb
+                          then Just (CharacterAlreadyPlayed "This character's already been played")
+                          else if not characterIsInAlphabet c
+                            then Just (CharacterNotInAlphabet "This character's not in the alphabet")
+                            else Nothing
 
 characterNotPlayedBefore :: Char -> GameBoard -> Bool
 characterNotPlayedBefore c gb = c `notElem` (lettersGuessed gb)
@@ -36,8 +49,10 @@ characterIsInAlphabet c = c `elem` alphabet
 
 shouldQuitGame :: String -> Bool
 shouldQuitGame s = s == "quit"
--- userWon :: GameBoard -> Bool
--- userWon GameBoard{ targetWord = t, lettersGuessed = l } = -- filter targetWord by lettersGuessed, if greater than 0, False
+
+hasUserWon :: GameBoard -> Bool
+hasUserWon gb = True
+-- hasUserWon GameBoard{ targetWord = t, lettersGuessed = l } = -- filter targetWord by lettersGuessed, if greater than 0, False
 
 gameLoop :: GameBoard -> IO ()
 gameLoop gb = do
@@ -45,7 +60,7 @@ gameLoop gb = do
     t_temp <- getLine
     if not $ shouldQuitGame t_temp then
       do
-        let c = head t_temp
+        let c = toLower $ head t_temp
         case processUserAttempt c gb of
           Left msg -> do
             putStrLn $ show msg
@@ -57,5 +72,10 @@ gameLoop gb = do
     else
       return ()
 
+prepareGameBoard :: [Char] -> GameBoard
+prepareGameBoard word = do
+                          let lowerCaseWord = fmap toLower word
+                          (GameBoard lowerCaseWord [] (sortUniq lowerCaseWord))
+
 main :: IO ()
-main = gameLoop (GameBoard "Tiago" [])
+main = gameLoop $ prepareGameBoard "Tiago"
