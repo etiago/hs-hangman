@@ -3,18 +3,21 @@ import Control.Monad
 import System.IO
 import Data.List
 import Data.Char
+import System.Random (randomRIO)
 
 data GameBoard = GameBoard { targetWord :: [Char], lettersGuessed :: [Char], lettersLeft :: [Char] }
   deriving (Show)
-data UserAttemptOutcome = UserWon [Char] | CharacterAlreadyPlayed [Char] | CharacterNotInAlphabet [Char]
+data UserAttemptOutcome = CharacterAlreadyPlayed [Char] | CharacterNotInAlphabet [Char]
   deriving (Show)
+type ValidChar = Char
 
+randomWords = ["copper", "explain", "truck", "neat", "unite"]
 alphabet = "abcdefghjijklmnopqrstuvwxyz"
 
 sortUniq :: Ord a => [a] -> [a]
 sortUniq = nub . sort
 
-takeGuess :: Char -> GameBoard -> GameBoard
+takeGuess :: ValidChar -> GameBoard -> GameBoard
 takeGuess c gb = (GameBoard
                   (targetWord gb)
                   (c : (lettersGuessed gb))
@@ -23,23 +26,12 @@ takeGuess c gb = (GameBoard
 passthrough :: GameBoard -> GameBoard
 passthrough gb = gb
 
-processUserAttempt :: Char -> GameBoard -> Either UserAttemptOutcome GameBoard
-processUserAttempt c gb = do
-                          let characterAllowed = isCharacterAllowed c gb
-                          if  characterAllowed
-                          then do
-                            let newGameBoard = (takeGuess c gb)
-                            if hasUserWon newGameBoard
-                            then Left (UserWon "Congrats!")
-                            else Right newGameBoard
-                          else Left (CharacterAlreadyPlayed "This character's already been played")
-
-isCharacterAllowed :: Char -> GameBoard -> Maybe UserAttemptOutcome
-isCharacterAllowed c gb = if not characterNotPlayedBefore c gb
-                          then Just (CharacterAlreadyPlayed "This character's already been played")
-                          else if not characterIsInAlphabet c
-                            then Just (CharacterNotInAlphabet "This character's not in the alphabet")
-                            else Nothing
+isCharacterAllowed :: Char -> GameBoard -> Either UserAttemptOutcome ValidChar
+isCharacterAllowed c gb = if not $ characterNotPlayedBefore c gb
+                          then Left (CharacterAlreadyPlayed "This character's already been played")
+                          else if not $ characterIsInAlphabet c
+                          then Left (CharacterNotInAlphabet "This character's not in the alphabet")
+                          else Right c
 
 characterNotPlayedBefore :: Char -> GameBoard -> Bool
 characterNotPlayedBefore c gb = c `notElem` (lettersGuessed gb)
@@ -51,8 +43,11 @@ shouldQuitGame :: String -> Bool
 shouldQuitGame s = s == "quit"
 
 hasUserWon :: GameBoard -> Bool
-hasUserWon gb = True
--- hasUserWon GameBoard{ targetWord = t, lettersGuessed = l } = -- filter targetWord by lettersGuessed, if greater than 0, False
+hasUserWon gb = length (lettersLeft gb) == 0
+
+printWinMessage :: GameBoard -> IO ()
+printWinMessage gb = do
+  putStrLn $ "Congrats! You guessed the word in " ++ show (length (lettersGuessed gb)) ++ " attempts."
 
 gameLoop :: GameBoard -> IO ()
 gameLoop gb = do
@@ -61,14 +56,16 @@ gameLoop gb = do
     if not $ shouldQuitGame t_temp then
       do
         let c = toLower $ head t_temp
-        case processUserAttempt c gb of
-          Left msg -> do
-            putStrLn $ show msg
-            putStrLn $ show gb
+        case isCharacterAllowed c gb of
+          Left uao -> do
+            putStrLn $ show uao
             gameLoop gb
-          Right newGameBoard -> do
+          Right vc -> do
+            let newGameBoard = takeGuess c gb
             putStrLn $ show newGameBoard
-            gameLoop newGameBoard
+            if hasUserWon newGameBoard
+              then printWinMessage newGameBoard
+              else gameLoop newGameBoard
     else
       return ()
 
@@ -77,5 +74,10 @@ prepareGameBoard word = do
                           let lowerCaseWord = fmap toLower word
                           (GameBoard lowerCaseWord [] (sortUniq lowerCaseWord))
 
+pick :: [a] -> IO a
+pick xs = fmap (xs !!) $ randomRIO (0, length xs - 1)
+
 main :: IO ()
-main = gameLoop $ prepareGameBoard "Tiago"
+main = do
+  w <- pick randomWords
+  gameLoop $ prepareGameBoard w
