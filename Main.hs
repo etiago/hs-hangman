@@ -6,9 +6,14 @@ import Data.Char
 import System.Random (randomRIO)
 
 data GameBoard = GameBoard { targetWord :: [Char], lettersGuessed :: [Char], lettersLeft :: [Char] }
-  deriving (Show)
+instance Show GameBoard where
+  show (GameBoard tw lg ll) = "Word: " ++ (fillInBlanks tw ll) ++ ", Letters used: " ++ lg
+
 data UserAttemptOutcome = CharacterAlreadyPlayed [Char] | CharacterNotInAlphabet [Char]
-  deriving (Show)
+instance Show UserAttemptOutcome where
+  show (CharacterAlreadyPlayed c) = c
+  show (CharacterNotInAlphabet c) = c
+
 type ValidChar = Char
 
 randomWords = ["copper", "explain", "truck", "neat", "unite"]
@@ -16,6 +21,9 @@ alphabet = "abcdefghjijklmnopqrstuvwxyz"
 
 sortUniq :: Ord a => [a] -> [a]
 sortUniq = nub . sort
+
+fillInBlanks :: [Char] -> [Char] -> [Char]
+fillInBlanks targetWord lettersLeft = map (\c -> if c `elem` lettersLeft then '_' else c) targetWord
 
 takeGuess :: ValidChar -> GameBoard -> GameBoard
 takeGuess c gb = (GameBoard
@@ -47,7 +55,9 @@ hasUserWon gb = length (lettersLeft gb) == 0
 
 printWinMessage :: GameBoard -> IO ()
 printWinMessage gb = do
-  putStrLn $ "Congrats! You guessed the word in " ++ show (length (lettersGuessed gb)) ++ " attempts."
+  let word = targetWord gb
+      attempts = show (length (lettersGuessed gb))
+  putStrLn $ "Congrats! You guessed the word " ++ word ++ " in " ++ attempts ++ " attempts."
 
 gameLoop :: GameBoard -> IO ()
 gameLoop gb = do
