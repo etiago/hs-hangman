@@ -1,9 +1,9 @@
-import Control.Applicative
-import Control.Monad
-import System.IO
-import Data.List
-import Data.Char
-import System.Random (randomRIO)
+import           Control.Applicative
+import           Control.Monad
+import           Data.Char
+import           Data.List
+import           System.IO
+import           System.Random       (randomRIO)
 
 data GameBoard = GameBoard { targetWord :: [Char], lettersGuessed :: [Char], lettersLeft :: [Char] }
 instance Show GameBoard where
@@ -16,14 +16,16 @@ instance Show UserAttemptOutcome where
 
 type ValidChar = Char
 
+randomWords :: [[Char]]
 randomWords = ["copper", "explain", "truck", "neat", "unite"]
+alphabet :: [Char]
 alphabet = "abcdefghjijklmnopqrstuvwxyz"
 
 sortUniq :: Ord a => [a] -> [a]
 sortUniq = nub . sort
 
 fillInBlanks :: [Char] -> [Char] -> [Char]
-fillInBlanks targetWord lettersLeft = map (\c -> if c `elem` lettersLeft then '_' else c) targetWord
+fillInBlanks tW lL = map (\c -> if c `elem` lL then '_' else c) tW
 
 takeGuess :: ValidChar -> GameBoard -> GameBoard
 takeGuess c gb = (GameBoard
@@ -58,6 +60,7 @@ printWinMessage gb = do
   let word = targetWord gb
       attempts = show (length (lettersGuessed gb))
   putStrLn $ "Congrats! You guessed the word " ++ word ++ " in " ++ attempts ++ " attempts."
+
 
 gameLoop :: GameBoard -> IO ()
 gameLoop gb = do

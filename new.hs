@@ -4,25 +4,21 @@ import System.IO
 import Data.List
 import Data.Char
 import System.Random (randomRIO)
+import Control.Monad
 
 data Hangman = Guess [Maybe Char] (Char -> Hangman) | Won [Char]
 
-f :: IO (Maybe Char)
-f = getLine >>= (\l -> return $ if (length l) == 0
-                                then Nothing
-                                else Just $ head l)
-
 singleton :: Char -> Hangman
-singleton c = Guess [Just c] singleton
-
-printer :: Maybe Char -> IO()
-printer mc = case mc of
-              Nothing -> return ()
-              Just c -> putStrLn $ show c
+singleton c = Guess [Nothing] (\c' -> if c == c' then Won [c] else singleton c)
 
 hangmanStdio :: Hangman -> IO()
-hangmanStdio h = f >>= printer
-
+hangmanStdio (Won xs) = do
+  putStrLn $ "You Won! The winning word was " ++ xs
+  
+hangmanStdio (Guess xs f) = do
+  putStrLn "Try to guess the character:"
+  inputLine <- getLine
+  hangmanStdio $ f $ head inputLine
 
 main :: IO ()
-main = hangmanStdio $ Guess [] singleton
+main = hangmanStdio $ singleton 'c'
